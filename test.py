@@ -6,8 +6,17 @@ import pyaudio
 from vosk import Model, KaldiRecognizer
 import torch
 import sounddevice as sd
+from os import path
 #import soundfile as sf
-model = Model("/models/vosk-model-small-ru-0.22") #путь до модели обработчика голоса Vosk
+#from features.speak import speak
+#from pathlib import Path
+
+path = path.dirname(path.abspath(__file__))+"/models/vosk-model-small-ru-0.22" 
+model = Model(path) #путь до модели обработчика голоса Vosk
+
+system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
+response: ChatResponse = chat(model='gemma3', messages=[{'role': 'system', 'content': system_instruction,}])
+print(response.message.content)
 
 recognizer = KaldiRecognizer(model, 16000)
 
@@ -29,7 +38,7 @@ print(f"Доступные голоса: {available_speakers}")
 
 while True:
 	try:
-		data = stream.read(4000, exception_on_overflow=False)
+		data = stream.read(8000, exception_on_overflow=False)
 		print("Listening...")
 		if recognizer.AcceptWaveform(data): #Обработка звука блоками по 4000 байт (или бит не помню)
 			result_dict = json.loads(recognizer.Result())
@@ -43,8 +52,9 @@ while True:
 			response: ChatResponse = chat(model='gemma3', messages=[{'role': 'user', 'content': text,}]) #Запрос
 
 			text = response.message.content #Результат
-			print(response.message.content)
+			print(text)
 			
+			#speak(text)
 			# Генерируем аудио и воспроизводим аудио Доступные голоса: ['aidar', 'baya', 'kseniya', 'xenia', 'eugene', 'random']
 			audio = model.apply_tts(text=text,speaker='kseniya', sample_rate=48000)
 			sd.play(audio, 48000)
