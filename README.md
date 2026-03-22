@@ -1,4 +1,4 @@
-pip install ollama, torch, silero, sounddevice, vosk, pyaudio, json # возможно не все расширения
+pip install ollama, torch, silero, sounddevice, vosk, pyaudio, json, openai # возможно не все расширения
 
 install your language model for vosk // скачивание vosk модели на вашем языке
 https://alphacephei.com/vosk/models
