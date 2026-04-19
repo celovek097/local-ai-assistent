@@ -9,40 +9,52 @@ from os import path
 #import soundfile as sf
 #from features.speak import speak
 #from pathlib import Path
-from openai import OpenAI
 
-client = OpenAI(
-    api_key="sk-a03cec19ea88493c85fb3a3e0c8592e0",
-    base_url="https://api.deepseek.com"
-)
+local_ai_model = "gemma3"
 
-def ethernet_response(text):
-    response = client.chat.completions.create(
-        model="deepseek-chat",
-        messages=[
-            {"role": "system", "content": "Ты "},
-            {"role": "user", "content": text},
-        ],
-        stream=False
-    )
-    return response.choices[0].message.content
+history = []
+def save_history(history, filename="history.txt"):
+	with open(filename, 'a', encoding='utf-8') as f:
+		json.dump(history, f, ensure_ascii=False, indent=2)
+
+def load_history(filename="history.txt"):
+	with open(filename, 'r', encoding='utf-8') as  f:
+		response: CharResponse = chat(json.load(f))
+
+#def ethernet_response(text):
+#    response = client.chat.completions.create(
+#        model="deepseek-chat",
+#        messages=[
+#            {"role": "system", "content": "Ты "},
+#            {"role": "user", "content": text},
+#        ],
+#        stream=False
+#    )
+#    return response.choices[0].message.content
 
 def local_response(text):
-    response: ChatResponse = chat(
-        model='gemma3',#Запрос
-        messages=[
-            {'role': 'system', 'content': text}])
-    return response.message.content #Результат
+	global local_ai_model
+	message =[{'role': 'assistant', 'content': text}]
+	response: ChatResponse = chat(local_ai_model, message)
+	save_history(message)
+	return response.message.content #Результат
 
 
 path = path.dirname(path.abspath(__file__))+"/models/vosk-model-small-ru-0.22" 
-model = Model(path) #путь до модели обработчика голоса Vosk
+Vosk_model = Model(path) #путь до модели обработчика голоса Vosk
 
 print("LOG Load system_instruction")
 system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
-print(local_response(system_instruction))
+response: ChatResponse = chat(
+        local_ai_model, #Запрос
+        messages=[
+            {'role': 'assistant', 'content': system_instruction}])
+print(response.message.content)
 
-recognizer = KaldiRecognizer(model, 16000)
+print("LOG Load history")
+load_history()
+
+recognizer = KaldiRecognizer(vosk_model, 16000)
 
 print("LOG load listening setting")
 p = pyaudio.PyAudio()
