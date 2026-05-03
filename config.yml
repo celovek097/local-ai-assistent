@@ -1,0 +1,53 @@
+# Конфигурация локального ИИ-ассистента
+# Все пути относительные считаются от корня проекта.
+
+llm:
+  # Имя модели Ollama (должна быть уже скачана: ollama pull <name>).
+  model: "gemma3:latest"
+  # Системный промпт. Задаёт характер и язык ответов ассистента.
+  system_prompt: >-
+    Ты Стелла, голосовой ассистент. Общайся с пользователем как с другом,
+    поддерживай простой диалог, всегда отвечай на русском языке и только
+    буквами (без эмодзи и спецсимволов). Укладывай ответ в 1000 символов.
+  # Сколько последних пар (user+assistant) подавать в контекст.
+  history_window: 10
+  # Параметры генерации Ollama.
+  options:
+    temperature: 0.7
+    top_p: 0.9
+    num_ctx: 4096
+
+stt:
+  # Путь к распакованной модели Vosk. Скачать: https://alphacephei.com/vosk/models
+  model_path: "models/vosk-model-small-ru-0.22"
+  sample_rate: 16000
+  # Размер блока чтения с микрофона (frames). 8000 ≈ 0.5 сек при 16 кГц.
+  block_size: 8000
+  # Слово-команда для выхода (произнесите, чтобы завершить программу).
+  exit_phrase: "выход"
+
+tts:
+  # Движок TTS. Сейчас поддерживается "piper".
+  engine: "piper"
+  # Путь к .onnx файлу голоса Piper.
+  # Русские голоса можно скачать на https://huggingface.co/rhasspy/piper-voices
+  # Доступные русские: ru_RU-irina-medium, ru_RU-denis-medium,
+  # ru_RU-dmitri-medium, ru_RU-ruslan-medium.
+  voice: "models/ru_RU-irina-medium.onnx"
+  # Доп. настройки синтеза.
+  # length_scale: длительность речи. <1 быстрее, >1 медленнее.
+  length_scale: 1.0
+  # noise_scale: вариативность интонации (0.0–1.0).
+  noise_scale: 0.667
+  # noise_w: вариативность длительностей фонем (0.0–1.0).
+  noise_w: 0.8
+  # Громкость воспроизведения (0.0–2.0). Простое масштабирование amplitude.
+  volume: 1.0
+  # ID звуковой карты sounddevice (None = устройство по-умолчанию).
+  output_device: null
+
+history:
+  # Файл для хранения истории диалога (JSONL).
+  file: "history.jsonl"
+  # Очищать историю при запуске.
+  clear_on_start: true
