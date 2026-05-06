@@ -5,6 +5,7 @@ https://alphacephei.com/vosk/models
 
 скаченую папку положить в models
 models должна находится в одной папке с .py файлом
+
 local_ai
 |
 |-test.py
@@ -13,5 +14,8 @@ local_ai
 |-models
     |-vosk-model-small-ru-0.22
 
+
+
 bash/cmd
+
 ollama push gemma3:latest (или ваша желаемая модель)
