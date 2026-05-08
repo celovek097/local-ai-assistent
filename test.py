@@ -48,29 +48,30 @@ def load_history(filename="history.txt"):
 		print('LOG Error load history with error ', e)
 	return None
 
-def local_response(text, role="user"):
-	global local_ai_model, sys_instr
+def response(text, role="user"):
+	global sys_instr, print_api_error
 	history = load_history()
-	message ={'role': role, 'content': text}
+	message = {'role': role, 'content': text}
 	content = [*sys_instr, *history, message] if history != None else [*sys_instr, message]
-	response: ChatResponse = chat(model=local_ai_model, messages=content)
+	try:
+		result = ethernet_response(content)
+	except APIError:
+		print("API error, check ethernet connection and API key") if print_api_error else None
+		result = local_response(content)
 	save_history(message)
 	print(content, '\n')
-	result = response.message.content
-	save_history({'role':'assistant', 'content':result})
-	return result #Результат
+	save_history({'role': 'assistant', 'content': result})
+	return result  # Результат
 
-def ethernet_response(text, role="user"):
-	global ethernet_ai_model, sys_instr
-	history = load_history()
-	message ={'role': role, 'content': text}
-	content = [*sys_instr, *history, message] if history != None else [*sys_instr, message]
+def local_response(content):
+	global local_ai_model
+	response: ChatResponse = chat(model=local_ai_model, messages=content)
+	return response.message.content
+
+def ethernet_response(content):
+	global ethernet_ai_model
 	completion = client.chat.completions.create(messages=content,model=ethernet_ai_model)
-	save_history(message)
-	print(content, '\n')
-	result = completion.choices[0].message.content
-	save_history({'role':'assistant', 'content':result})
-	return result #Результат
+	return completion.choices[0].message.content #Результат
 
 vosk_path = os.path.dirname(os.path.abspath(__file__))+"/models/vosk-model-small-ru-0.22"
 vosk_model = Model(vosk_path) #stt путь до модели обработчика голоса Vosk
@@ -111,11 +112,8 @@ while True:
 				stream.stop_stream()
 				stream.close()
 				break
-			if text != "" and text != " " or True:
-				try:text = ethernet_response(text)
-				except APIError:
-					print("API error, check ethernet connection and API key") if print_api_error else None
-					text = local_response(text)
+			if text != "" and text != " ":
+				text = response(text)
 				print(text)
 				# Генерируем аудио и воспроизводим аудио Доступные голоса: ['aidar', 'baya', 'kseniya', 'xenia', 'eugene', 'random']
 				audio = model.apply_tts(text=text,speaker='xenia', sample_rate=48000)
