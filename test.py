@@ -1,5 +1,5 @@
 from ollama import chat, ChatResponse
-from cerebras.cloud.sdk import Cerebras
+from cerebras.cloud.sdk import Cerebras, APIError
 from vosk import Model, KaldiRecognizer
 import os
 import dotenv
@@ -7,16 +7,17 @@ import json
 import pyaudio
 import torch
 import sounddevice as sd
-import socket
 
-dotenv.load_dotenv()  # Загружаем переменные из .env
-api_key = os.getenv("API_KEY")
-client = Cerebras(api_key=api_key)  # Клиент сам найдёт ключ
+print_api_error = True # False to off print "API error, check ethernet connection and API key"
 local_ai_model = "gemma3:latest"
 ethernet_ai_model = "llama3.1-8b"
 system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, поддерживай простой диалог, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
 
 sys_instr = [{'role': 'system', 'content': system_instruction}, {'role': 'assistant', 'content': 'Здравствуйте!'}]
+
+dotenv.load_dotenv()
+api_key = os.getenv("API_KEY")
+client = Cerebras(api_key=api_key)
 
 def clear_history(filename="history.txt"):
 	try:
@@ -51,7 +52,7 @@ def local_response(text, role="user"):
 	global local_ai_model, sys_instr
 	history = load_history()
 	message ={'role': role, 'content': text}
-	content = [*sys_instr, *history, message] if history != None else [sys_instr, message]
+	content = [*sys_instr, *history, message] if history != None else [*sys_instr, message]
 	response: ChatResponse = chat(model=local_ai_model, messages=content)
 	save_history(message)
 	print(content, '\n')
@@ -63,29 +64,13 @@ def ethernet_response(text, role="user"):
 	global ethernet_ai_model, sys_instr
 	history = load_history()
 	message ={'role': role, 'content': text}
-	content = [*sys_instr, *history, message] if history != None else [sys_instr, message]
+	content = [*sys_instr, *history, message] if history != None else [*sys_instr, message]
 	completion = client.chat.completions.create(messages=content,model=ethernet_ai_model)
 	save_history(message)
 	print(content, '\n')
 	result = completion.choices[0].message.content
 	save_history({'role':'assistant', 'content':result})
 	return result #Результат
-
-def check_internet(host="8.8.8.8", port=53, timeout=3):
-	print("checking internet connection")
-	"""
-	Проверка доступа в интернет через создание сокета.
-	По умолчанию использует DNS-сервер Google (8.8.8.8) и порт 53.
-	"""
-	try:
-		# Устанавливаем соединение, таймаут - 3 секунды
-		socket.setdefaulttimeout(timeout)
-		socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
-		print("True")
-		return True
-	except socket.error:
-		print("False")
-		return False
 
 vosk_path = os.path.dirname(os.path.abspath(__file__))+"/models/vosk-model-small-ru-0.22"
 vosk_model = Model(vosk_path) #stt путь до модели обработчика голоса Vosk
@@ -126,9 +111,11 @@ while True:
 				stream.stop_stream()
 				stream.close()
 				break
-			if text != "" and text != " ":
-				if check_internet: text = ethernet_response(text)
-				else:text = local_response(text)
+			if text != "" and text != " " or True:
+				try:text = ethernet_response(text)
+				except APIError:
+					print("API error, check ethernet connection and API key") if print_api_error else None
+					text = local_response(text)
 				print(text)
 				# Генерируем аудио и воспроизводим аудио Доступные голоса: ['aidar', 'baya', 'kseniya', 'xenia', 'eugene', 'random']
 				audio = model.apply_tts(text=text,speaker='xenia', sample_rate=48000)
