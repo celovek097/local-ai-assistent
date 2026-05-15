@@ -1,5 +1,4 @@
 from ollama import chat, ChatResponse
-from cerebras.cloud.sdk import Cerebras, APIError
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import os
 import dotenv
@@ -8,8 +7,8 @@ import pyaudio
 import torch
 import sounddevice as sd
 
-print_log = False
-clear_on_every_start = True
+print_log = True
+clear_history_on_every_start = True
 all_local = False
 print_api_error = True # False to off print "API error, check ethernet connection and API key"
 local_ai_model = "gemma3:latest"
@@ -20,6 +19,7 @@ SetLogLevel(0) if print_log else SetLogLevel(-1)
 sys_instr = [{'role': 'system', 'content': system_instruction}]
 
 if all_local == False:
+	from cerebras.cloud.sdk import Cerebras, APIError
 	dotenv.load_dotenv()
 	api_key = os.getenv("API_KEY")
 	client = Cerebras(api_key=api_key)
@@ -104,7 +104,7 @@ model.to(device)
 available_speakers = model.speakers
 print(f"Доступные голоса: {available_speakers}")
 
-clear_history() if clear_on_every_start else None
+clear_history() if clear_history_on_every_start else None
 while True:
 	try:
 		data = stream.read(8000, exception_on_overflow=False)
