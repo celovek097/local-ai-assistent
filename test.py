@@ -1,3 +1,13 @@
+#----------------------------
+print_log = True
+clear_history_on_every_start = True
+all_local = False
+print_api_error = True # False to off print "API error, check ethernet connection and API key"
+local_ai_model = "gemma3:latest"
+ethernet_ai_model = "llama3.1-8b"
+system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, поддерживай простой диалог, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
+#----------------------------
+
 from ollama import chat, ChatResponse
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import os
@@ -6,14 +16,6 @@ import json
 import pyaudio
 import torch
 import sounddevice as sd
-
-print_log = True
-clear_history_on_every_start = True
-all_local = False
-print_api_error = True # False to off print "API error, check ethernet connection and API key"
-local_ai_model = "gemma3:latest"
-ethernet_ai_model = "llama3.1-8b"
-system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, поддерживай простой диалог, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
 
 SetLogLevel(0) if print_log else SetLogLevel(-1)
 sys_instr = [{'role': 'system', 'content': system_instruction}]
