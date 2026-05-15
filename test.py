@@ -1,23 +1,30 @@
+#----------------------------
+print_log = True
+clear_history_on_every_start = True
+all_local = False
+print_api_error = True # False to off print "API error, check ethernet connection and API key"
+local_ai_model = "gemma3:latest"
+ethernet_ai_model = "llama3.1-8b"
+system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, поддерживай простой диалог, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
+#----------------------------
+
 from ollama import chat, ChatResponse
-from cerebras.cloud.sdk import Cerebras, APIError
-from vosk import Model, KaldiRecognizer
+from vosk import Model, KaldiRecognizer, SetLogLevel
 import os
-import dotenv
 import json
 import pyaudio
 import torch
 import sounddevice as sd
 
-print_api_error = True # False to off print "API error, check ethernet connection and API key"
-local_ai_model = "gemma3:latest"
-ethernet_ai_model = "llama3.1-8b"
-system_instruction = "Ты Стелла, голосовой ассистент, общайся с пользователем как с другом, поддерживай простой диалог, всегда отвечай на русском и только буквами, всегда укладывай ответ в 1000 символов."
+SetLogLevel(0) if print_log else SetLogLevel(-1)
+sys_instr = [{'role': 'system', 'content': system_instruction}]
 
-sys_instr = [{'role': 'system', 'content': system_instruction}, {'role': 'assistant', 'content': 'Здравствуйте!'}]
-
-dotenv.load_dotenv()
-api_key = os.getenv("API_KEY")
-client = Cerebras(api_key=api_key)
+if all_local == False:
+	import dotenv
+	from cerebras.cloud.sdk import Cerebras, APIError
+	dotenv.load_dotenv()
+	api_key = os.getenv("API_KEY")
+	client = Cerebras(api_key=api_key)
 
 def clear_history(filename="history.txt"):
 	try:
@@ -45,7 +52,7 @@ def load_history(filename="history.txt"):
 	except FileNotFoundError:
 		print("LOG file not found")
 	except Exception as e:
-		print('LOG Error load history with error ', e)
+		print('LOG Error load history with error ', e) if print_log else None
 	return None
 
 def response(text, role="user"):
@@ -53,11 +60,14 @@ def response(text, role="user"):
 	history = load_history()
 	message = {'role': role, 'content': text}
 	content = [*sys_instr, *history, message] if history != None else [*sys_instr, message]
-	try:
-		result = ethernet_response(content)
-	except APIError:
-		print("API error, check ethernet connection and API key") if print_api_error else None
+	if all_local:
 		result = local_response(content)
+	else:
+		try:
+			result = ethernet_response(content)
+		except APIError:
+			print("API error, check ethernet connection and API key") if print_api_error else None
+			result = local_response(content)
 	save_history(message)
 	print(content, '\n')
 	save_history({'role': 'assistant', 'content': result})
@@ -78,11 +88,11 @@ vosk_model = Model(vosk_path) #stt путь до модели обработчи
 
 recognizer = KaldiRecognizer(vosk_model, 16000)
 
-print("LOG load listening setting")
+print("LOG load listening setting") if print_log else None
 p = pyaudio.PyAudio()
 stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000,input=True, frames_per_buffer=4000)
 
-print("LOG load silero, tts module")
+print("LOG load silero, tts module") if print_log else None
 
 device = torch.device('cpu')  #'cpu' можно и 'cuda' если есть GPU
 model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models',
@@ -96,16 +106,16 @@ model.to(device)
 available_speakers = model.speakers
 print(f"Доступные голоса: {available_speakers}")
 
-clear_history()
+clear_history() if clear_history_on_every_start else None
 while True:
 	try:
 		data = stream.read(8000, exception_on_overflow=False)
-		print("Listening...")
+		print("Listening...") if print_log else None
 		if recognizer.AcceptWaveform(data): #Обработка звука блоками по 4000 байт (или бит не помню)
 			result_dict = json.loads(recognizer.Result())
 			text = result_dict.get("text", "")
 			text = text.lower()
-			print("You said:", text)
+			print("You said:", text) if print_log and text != "" and text != " " else None
 
 			if "выход" in text:
 				print("Exiting program...")
@@ -117,7 +127,9 @@ while True:
 				print(text)
 				# Генерируем аудио и воспроизводим аудио Доступные голоса: ['aidar', 'baya', 'kseniya', 'xenia', 'eugene', 'random']
 				audio = model.apply_tts(text=text,speaker='xenia', sample_rate=48000)
+				stream.stop_stream()
 				sd.play(audio, samplerate=48000, latency='low', blocksize=256)
 				sd.wait()
+				stream.start_stream()
 	except Exception as e:
 		print("err", e)
