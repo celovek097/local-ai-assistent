@@ -19,3 +19,11 @@ local_ai
 bash/cmd
 
 ollama push gemma3:latest (или ваша желаемая модель)
+
+
+В windows просто запустить .py
+
+В Linux для локальной обработки запустить
+```
+ollama serve`
+```
